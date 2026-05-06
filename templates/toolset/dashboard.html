@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    .catalog-intro {
+        padding: 1.35rem;
+    }
+
+    .catalog-form {
+        align-items: flex-end;
+    }
+
+    .catalog-section {
+        margin-bottom: 1.75rem;
+    }
+
+    .catalog-section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .catalog-section-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .catalog-section-line {
+        height: 1px;
+        flex: 1;
+        background: linear-gradient(to right, var(--line), transparent);
+    }
+
+    .catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+    }
+
+    .tool-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem;
+        box-shadow: var(--card-shadow);
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .tool-card:hover {
+        transform: translateY(-2px);
+        border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="dark"] .tool-card:hover {
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+    }
+
+    .tool-card-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.8rem;
+    }
+
+    .tool-icon {
+        width: 2.8rem;
+        height: 2.8rem;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface-2) 86%, white 14%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: var(--ink);
+    }
+
+    .tool-icon svg {
+        width: 1.35rem;
+        height: 1.35rem;
+        display: block;
+    }
+
+    .tool-icon img {
+        width: 1.35rem;
+        height: 1.35rem;
+        display: block;
+        object-fit: contain;
+    }
+
+    .tool-copy {
+        min-width: 0;
+    }
+
+    .tool-copy p {
+        margin: 0;
+    }
+
+    .tool-title-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .tool-title {
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .tool-tag {
+        font-size: 0.72rem;
+        padding: 0.2rem 0.45rem;
+        border-radius: 999px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .tool-actions {
+        margin-top: auto;
+    }
+
+    .tool-action-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .social-youtube {
+        color: #ff0000;
+        background: color-mix(in srgb, #ff0000 10%, var(--surface));
+    }
+
+    .social-instagram {
+        color: #c13584;
+        background: color-mix(in srgb, #c13584 10%, var(--surface));
+    }
+
+    .social-facebook {
+        color: #1877f2;
+        background: color-mix(in srgb, #1877f2 10%, var(--surface));
+    }
+
+    .social-tiktok {
+        color: #111111;
+        background: color-mix(in srgb, var(--surface-2) 78%, white 22%);
+    }
+
+    .social-soundcloud {
+        color: #ff5500;
+        background: color-mix(in srgb, #ff5500 10%, var(--surface));
+    }
+
+    .social-twitter-x {
+        color: #111111;
+        background: color-mix(in srgb, var(--surface-2) 78%, white 22%);
+    }
+
+    [data-theme="dark"] .social-tiktok {
+        color: #ffffff;
+        background: color-mix(in srgb, var(--surface-2) 92%, #000 8%);
+    }
+
+    [data-theme="dark"] .social-twitter-x {
+        color: #ffffff;
+        background: color-mix(in srgb, var(--surface-2) 92%, #000 8%);
+    }
+
+    @media (max-width: 640px) {
+        .catalog-intro {
+            padding: 1rem;
+        }
+
+        .tool-card-top {
+            gap: 0.65rem;
+        }
+
+        .tool-icon {
+            width: 2.55rem;
+            height: 2.55rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card catalog-intro">
+    <h2 style="margin-top: 0;">Available Tools</h2>
+    <p class="muted">Browse tools by category and search by name, description, or keyword.</p>
+
+    <form method="get" class="inline catalog-form">
+        <div style="flex: 1; min-width: 230px;">
+            <label for="q">Search tools</label>
+            <input id="q" name="q" type="text" value="{{ query }}" placeholder="Try: youtube, reverse, count">
+        </div>
+        <div style="min-width: 180px;">
+            <label for="category">Category</label>
+            <select id="category" name="category">
+                <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All categories</option>
+                {% for category in categories %}
+                <option value="{{ category.slug }}" {% if selected_category == category.slug %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit">Apply</button>
+    </form>
+</div>
+
+{% if grouped_tools %}
+    {% for group in grouped_tools %}
+    <section class="catalog-section">
+        <div class="catalog-section-header">
+            <h3 class="catalog-section-title">{{ group.name }}</h3>
+            <div class="catalog-section-line"></div>
+        </div>
+        <div class="catalog-grid">
+            {% for tool in group.tools %}
+            <article class="tool-card">
+                <div class="tool-card-top">
+                    <div class="tool-icon {% if tool.task_type == 'youtube_download' %}social-youtube{% elif tool.task_type == 'instagram_download' %}social-instagram{% elif tool.task_type == 'facebook_download' %}social-facebook{% elif tool.task_type == 'tiktok_download' %}social-tiktok{% elif tool.task_type == 'soundcloud_download' %}social-soundcloud{% elif tool.task_type == 'twitter_download' %}social-twitter-x{% endif %}">
+                        {% if tool.task_type == 'word_count' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 7h16"></path>
+                            <path d="M4 12h10"></path>
+                            <path d="M4 17h7"></path>
+                            <path d="M17 10l3 8"></path>
+                            <path d="M15.5 14h3"></path>
+                        </svg>
+                        {% elif tool.task_type == 'reverse_text' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M7 7h11"></path>
+                            <path d="M7 12h7"></path>
+                            <path d="M7 17h11"></path>
+                            <path d="M6 7l-3 3 3 3"></path>
+                            <path d="M18 14l3 3-3 3"></path>
+                        </svg>
+                        {% elif tool.task_type == 'youtube_download' %}
+                        <img src="{% static 'icons/youtube.svg' %}" alt="YouTube">
+                        {% elif tool.task_type == 'instagram_download' %}
+                        <img src="{% static 'icons/instagram.svg' %}" alt="Instagram">
+                        {% elif tool.task_type == 'facebook_download' %}
+                        <img src="{% static 'icons/facebook.svg' %}" alt="Facebook">
+                        {% elif tool.task_type == 'tiktok_download' %}
+                        <img src="{% static 'icons/tiktok.svg' %}" alt="TikTok">
+                        {% elif tool.task_type == 'soundcloud_download' %}
+                        <img src="{% static 'icons/soundcloud.svg' %}" alt="SoundCloud">
+                        {% elif tool.task_type == 'twitter_download' %}
+                        <img src="{% static 'icons/x.svg' %}" alt="X">
+                        {% elif tool.task_type == 'msg_reader' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 6h16v12H4z"></path>
+                            <path d="m4 8 8 6 8-6"></path>
+                        </svg>
+                        {% elif tool.task_type == 'image_editor' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                            <path d="M16 3h3a2 2 0 0 1 2 2v3"></path>
+                            <path d="M21 16v3a2 2 0 0 1-2 2h-3"></path>
+                            <path d="M8 21H5a2 2 0 0 1-2-2v-3"></path>
+                            <path d="M9 9h6v6H9z"></path>
+                        </svg>
+                        {% endif %}
+                    </div>
+                    <div class="tool-copy">
+                        <div class="tool-title-row">
+                            <h4 class="tool-title">{{ tool.name }}</h4>
+                            <span class="tool-tag">{{ group.name }}</span>
+                        </div>
+                        <p>{{ tool.description }}</p>
+                    </div>
+                </div>
+                <div class="tool-actions">
+                    <a class="btn tool-action-btn" href="{% if tool.task_type == 'image_editor' %}{% url 'toolset:image_editor' %}{% else %}{% url 'toolset:run_tool' tool.task_type %}{% endif %}">Open Tool</a>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+{% else %}
+<div class="card">
+    <p>No tools match your filters.</p>
+</div>
+{% endif %}
+{% endblock %}

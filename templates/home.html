@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome | Toolset{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Your Personal Toolset Builder</h1>
+    <p class="muted">Create tools for specific tasks, run them anytime, and expand over time.</p>
+    <div class="inline">
+        <a class="btn" href="{% url 'register' %}">Get Started</a>
+        <a class="btn" href="{% url 'login' %}">Login</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,4 @@
+Django==6.0.4
+yt-dlp==2026.3.17
+extract-msg==0.55.0
+Pillow

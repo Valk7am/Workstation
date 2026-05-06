@@ -1,0 +1,297 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Workshop{% endblock %}</title>
+
+    {# Prevent flash of wrong theme before CSS loads #}
+    <script>
+    (function () {
+        var saved = localStorage.getItem('workshop-theme');
+        var sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', saved || sys);
+    })();
+    </script>
+
+    <link rel="stylesheet" href="{% static 'css/workshop.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <div id="nav-shell">
+        <nav>
+            <a class="brand" href="{% if user.is_authenticated %}{% url 'toolset:dashboard' %}{% else %}{% url 'home' %}{% endif %}">Workshop</a>
+
+            <div class="nav-right">
+                {% if user.is_authenticated %}
+                    <button type="button" class="btn search-trigger" id="open-quick-search">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        Search
+                        <span class="shortcut-badge">⌘K</span>
+                    </button>
+
+                    <div class="notif-menu" id="notif-menu">
+                        <button class="notif-btn" id="notif-btn" type="button" aria-label="Activity notifications" aria-expanded="false">
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M12 2a6 6 0 0 0-6 6v3.86c0 .53-.21 1.04-.59 1.41L4 14.67V17h16v-2.33l-1.41-1.4a2 2 0 0 1-.59-1.42V8a6 6 0 0 0-6-6Zm0 20a3 3 0 0 0 2.83-2H9.17A3 3 0 0 0 12 22Z"></path>
+                            </svg>
+                            <span class="notif-count" id="notif-count">0</span>
+                        </button>
+                        <div class="notif-dropdown" id="notif-dropdown">
+                            <div class="notif-header">
+                                <strong>Processes</strong>
+                                <a href="{% url 'profile' %}?tab=activity" class="muted" style="text-decoration:none;">Open activity</a>
+                            </div>
+                            <div class="notif-list" id="notif-list">
+                                <div class="notif-empty">No recent activity.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="avatar-menu" id="avatar-menu">
+                        <button class="avatar-btn" id="avatar-btn" aria-haspopup="true" aria-expanded="false" title="Account">
+                            {% if user.profile.avatar %}
+                                <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}">
+                            {% else %}
+                                {{ user.username|first|upper }}
+                            {% endif %}
+                        </button>
+
+                        <div class="avatar-dropdown" id="avatar-dropdown" role="menu">
+                            <div class="dd-user-info">
+                                <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                {{ user.email }}
+                            </div>
+
+                            {# Theme switcher #}
+                            <div class="dd-theme-row">
+                                <span class="dd-theme-label">Theme</span>
+                                <button class="theme-switch" id="theme-switch" type="button" aria-label="Toggle dark mode" aria-pressed="false">
+                                    <span class="theme-switch-track">
+                                        <span class="theme-switch-icon theme-switch-icon-sun">☀</span>
+                                        <span class="theme-switch-icon theme-switch-icon-moon">☾</span>
+                                        <span class="theme-switch-thumb"></span>
+                                    </span>
+                                </button>
+                            </div>
+
+                            <a href="{% url 'profile' %}" role="menuitem">Profile</a>
+                            <div class="dd-divider"></div>
+                            <form method="post" action="{% url 'logout' %}" style="margin:0;">
+                                {% csrf_token %}
+                                <button type="submit" class="dd-item" role="menuitem">Log out</button>
+                            </form>
+                        </div>
+                    </div>
+
+                {% else %}
+                    <a href="{% url 'login' %}">Login</a>
+                    <a href="{% url 'register' %}" class="btn" style="padding:0.42rem 0.85rem;font-size:0.88rem;">Register</a>
+                {% endif %}
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if user.is_authenticated %}
+    <div id="quick-search-overlay" class="search-overlay" aria-hidden="true">
+        <div class="search-panel" role="dialog" aria-modal="true" aria-labelledby="quick-search-title">
+            <div class="search-panel-header">
+                <h3 id="quick-search-title">Quick Search</h3>
+                <span class="shortcut-badge">Esc to close</span>
+            </div>
+            <form method="get" action="{% url 'toolset:dashboard' %}" id="quick-search-form">
+                <label for="quick-search-input" class="muted">Search tools</label>
+                <input id="quick-search-input" name="q" type="text" placeholder="Try: youtube, crop, msg…" autocomplete="off">
+                <p class="search-help">Press Enter to search · Esc to close</p>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+    (function () {
+        /* ── Theme logic ── */
+        var html = document.documentElement;
+
+        var themeSwitch = document.getElementById('theme-switch');
+
+        function applyTheme(theme) {
+            html.setAttribute('data-theme', theme);
+            localStorage.setItem('workshop-theme', theme);
+            if (themeSwitch) {
+                themeSwitch.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+                themeSwitch.setAttribute('title', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+            }
+        }
+
+        applyTheme(html.getAttribute('data-theme') || 'light');
+
+        if (themeSwitch) {
+            themeSwitch.addEventListener('click', function (e) {
+                e.stopPropagation();
+                applyTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+            });
+        }
+
+        /* ── Avatar dropdown ── */
+        var avatarBtn = document.getElementById('avatar-btn');
+        var avatarDropdown = document.getElementById('avatar-dropdown');
+        var notifBtn = document.getElementById('notif-btn');
+        var notifDropdown = document.getElementById('notif-dropdown');
+        var notifCount = document.getElementById('notif-count');
+        var notifList = document.getElementById('notif-list');
+
+        function escapeHtml(text) {
+            return (text || '').replace(/[&<>"']/g, function (char) {
+                return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char];
+            });
+        }
+
+        function renderNotifications(data) {
+            if (!notifCount || !notifList) {
+                return;
+            }
+
+            var count = data.in_progress_count || 0;
+            notifCount.textContent = count > 99 ? '99+' : String(count);
+            notifCount.style.display = count > 0 ? 'inline-block' : 'none';
+
+            if (!data.items || data.items.length === 0) {
+                notifList.innerHTML = '<div class="notif-empty">No recent activity.</div>';
+                return;
+            }
+
+            var htmlItems = data.items.map(function (item) {
+                var statusLabel = (item.status || '').replace('_', ' ');
+                var expires = item.expires_at ? '<span>Expires ' + escapeHtml(item.expires_at) + '</span>' : '';
+                return (
+                    '<a class="notif-item" href="{% url 'profile' %}?tab=activity">' +
+                        '<p class="notif-item-title">' + escapeHtml(item.task_label || 'Task') + '</p>' +
+                        '<div class="notif-item-meta">' +
+                            '<span class="notif-status ' + escapeHtml(item.status || '') + '">' + escapeHtml(statusLabel) + '</span>' +
+                            '<span>' + escapeHtml(item.created_at || '') + '</span>' +
+                            expires +
+                        '</div>' +
+                    '</a>'
+                );
+            });
+
+            notifList.innerHTML = htmlItems.join('');
+        }
+
+        function pollActivityStatus() {
+            if (!notifList) {
+                return;
+            }
+
+            fetch('{% url 'toolset:activity_status' %}', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load status');
+                    }
+                    return response.json();
+                })
+                .then(renderNotifications)
+                .catch(function () {
+                    // keep current UI when polling fails
+                });
+        }
+
+        if (avatarBtn && avatarDropdown) {
+            avatarBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var open = avatarDropdown.classList.toggle('open');
+                avatarBtn.setAttribute('aria-expanded', open);
+                if (notifDropdown) {
+                    notifDropdown.classList.remove('open');
+                }
+                if (notifBtn) {
+                    notifBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            avatarDropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+        }
+
+        if (notifBtn && notifDropdown) {
+            notifBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var open = notifDropdown.classList.toggle('open');
+                notifBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (avatarDropdown) {
+                    avatarDropdown.classList.remove('open');
+                }
+                if (avatarBtn) {
+                    avatarBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            notifDropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+        }
+
+        document.addEventListener('click', function () {
+            if (avatarDropdown) {
+                avatarDropdown.classList.remove('open');
+            }
+            if (avatarBtn) {
+                avatarBtn.setAttribute('aria-expanded', 'false');
+            }
+            if (notifDropdown) {
+                notifDropdown.classList.remove('open');
+            }
+            if (notifBtn) {
+                notifBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        pollActivityStatus();
+        setInterval(pollActivityStatus, 7000);
+
+        /* ── Spotlight search ── */
+        var overlay = document.getElementById('quick-search-overlay');
+        var trigger = document.getElementById('open-quick-search');
+        var searchInput = document.getElementById('quick-search-input');
+        var searchForm = document.getElementById('quick-search-form');
+
+        if (overlay && trigger && searchInput && searchForm) {
+            function openOverlay() {
+                overlay.classList.add('open');
+                overlay.setAttribute('aria-hidden', 'false');
+                searchInput.focus();
+                searchInput.select();
+            }
+            function closeOverlay() {
+                overlay.classList.remove('open');
+                overlay.setAttribute('aria-hidden', 'true');
+            }
+
+            trigger.addEventListener('click', openOverlay);
+            overlay.addEventListener('click', function (e) { if (e.target === overlay) closeOverlay(); });
+
+            document.addEventListener('keydown', function (e) {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                    e.preventDefault(); openOverlay();
+                } else if (e.key === 'Escape' && overlay.classList.contains('open')) {
+                    e.preventDefault(); closeOverlay();
+                }
+            });
+
+            searchForm.addEventListener('submit', function () {
+                if (!searchInput.value.trim()) { searchInput.focus(); }
+            });
+        }
+    })();
+    </script>
+
+</body>
+</html>

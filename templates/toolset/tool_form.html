@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Tool{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Create a New Tool</h2>
+    <p class="muted">Choose the task type this tool should perform.</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Create tool</button>
+    </form>
+</div>
+{% endblock %}

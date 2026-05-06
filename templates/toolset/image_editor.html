@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+
+{% block title %}Image Editor{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+
+<style>
+    .editor-layout {
+        display: grid;
+        grid-template-columns: 1fr 260px;
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    @media (max-width: 700px) {
+        .editor-layout { grid-template-columns: 1fr; }
+    }
+
+    .canvas-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1.25rem;
+        min-height: 360px;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .canvas-placeholder {
+        flex: 1;
+        border: 2px dashed var(--line);
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        font-size: 0.95rem;
+        gap: 0.5rem;
+        padding: 3rem 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+    }
+    .canvas-placeholder:hover { border-color: var(--accent); background: var(--dropdown-hover); }
+    .canvas-placeholder svg { opacity: 0.4; }
+
+    #cropper-wrap {
+        display: none;
+        max-height: 520px;
+        overflow: hidden;
+        border-radius: 8px;
+    }
+    #cropper-wrap img {
+        display: block;
+        max-width: 100%;
+    }
+
+    .controls-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.1rem;
+    }
+
+    .control-section label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--muted);
+        margin-bottom: 0.5rem;
+    }
+
+    .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .ctrl-btn {
+        flex: 1;
+        min-width: 60px;
+        padding: 0.55rem 0.6rem;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 0.88rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        transition: background 0.15s, border-color 0.15s;
+        color: var(--ink);
+    }
+    .ctrl-btn:hover { background: var(--dropdown-hover); border-color: var(--accent); }
+    .ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .ratio-btn {
+        padding: 0.45rem 0.65rem;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        font-size: 0.82rem;
+        cursor: pointer;
+        color: var(--ink);
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .ratio-btn:hover { border-color: var(--accent); }
+    .ratio-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .angle-display {
+        font-size: 0.95rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 0.3rem;
+    }
+
+    #save-btn {
+        width: 100%;
+        padding: 0.8rem;
+        font-size: 1rem;
+        font-weight: 600;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: opacity 0.15s;
+    }
+    #save-btn:hover { opacity: 0.88; }
+    #save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    #upload-input { display: none; }
+
+    .change-link {
+        font-size: 0.82rem;
+        color: var(--accent);
+        cursor: pointer;
+        text-align: center;
+        text-decoration: underline;
+    }
+    .change-link:hover { opacity: 0.75; }
+
+    #error-msg {
+        background: var(--error-bg);
+        border: 1px solid var(--error-border);
+        border-radius: 8px;
+        padding: 0.65rem 0.9rem;
+        color: var(--error-ink);
+        font-size: 0.88rem;
+        display: none;
+    }
+</style>
+
+<div class="card" style="margin-bottom: 1rem;">
+    <h2 style="margin: 0 0 0.25rem;">Image Editor</h2>
+    <p class="muted" style="margin: 0;">Upload an image, then crop and rotate it as needed. Hit <strong>Save &amp; Download</strong> when done.</p>
+</div>
+
+<div id="error-msg"></div>
+
+<div class="editor-layout">
+
+    {# ── Canvas / Cropper area ── #}
+    <div class="canvas-card">
+        <div class="canvas-placeholder" id="drop-zone">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="3"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span>Click or drag an image here</span>
+            <span style="font-size:0.8rem;">JPG, PNG, WebP, BMP supported</span>
+        </div>
+        <div id="cropper-wrap">
+            <img id="crop-image" src="" alt="Edit target">
+        </div>
+        <input type="file" id="upload-input" accept="image/jpeg,image/png,image/webp,image/bmp,image/gif">
+        <div class="change-link" id="change-image" style="display:none;">↺ Change image</div>
+    </div>
+
+    {# ── Controls panel ── #}
+    <div class="controls-card">
+
+        <div class="control-section">
+            <label>Rotate</label>
+            <div class="btn-row">
+                <button class="ctrl-btn" id="rot-ccw" title="Rotate 90° counter-clockwise" disabled>
+                    ↺ 90°
+                </button>
+                <button class="ctrl-btn" id="rot-cw" title="Rotate 90° clockwise" disabled>
+                    ↻ 90°
+                </button>
+            </div>
+            <div class="btn-row" style="margin-top: 0.4rem;">
+                <button class="ctrl-btn" id="rot-minus" title="−1°" disabled>−1°</button>
+                <button class="ctrl-btn" id="rot-plus" title="+1°" disabled>+1°</button>
+                <button class="ctrl-btn" id="rot-reset" title="Reset rotation" disabled style="flex: none; padding-left: 0.9rem; padding-right: 0.9rem;">Reset</button>
+            </div>
+            <div class="angle-display" id="angle-display">0°</div>
+        </div>
+
+        <div class="control-section">
+            <label>Flip</label>
+            <div class="btn-row">
+                <button class="ctrl-btn" id="flip-h" disabled>↔ Horizontal</button>
+                <button class="ctrl-btn" id="flip-v" disabled>↕ Vertical</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <label>Aspect Ratio</label>
+            <div class="btn-row" style="flex-wrap: wrap;">
+                <button class="ratio-btn active" data-ratio="NaN">Free</button>
+                <button class="ratio-btn" data-ratio="1">1:1</button>
+                <button class="ratio-btn" data-ratio="1.7778">16:9</button>
+                <button class="ratio-btn" data-ratio="1.3333">4:3</button>
+                <button class="ratio-btn" data-ratio="0.5625">9:16</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <label>Selection</label>
+            <div class="btn-row">
+                <button class="ctrl-btn" id="reset-crop" disabled>Reset crop</button>
+            </div>
+        </div>
+
+        <button id="save-btn" disabled>Save &amp; Download</button>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<script>
+(function () {
+    const dropZone    = document.getElementById('drop-zone');
+    const fileInput   = document.getElementById('upload-input');
+    const cropperWrap = document.getElementById('cropper-wrap');
+    const cropImg     = document.getElementById('crop-image');
+    const changeLink  = document.getElementById('change-image');
+    const errorMsg    = document.getElementById('error-msg');
+    const angleDisp   = document.getElementById('angle-display');
+
+    let cropper = null;
+    let currentFile = null;
+    let currentRotation = 0;
+    let flipX = false, flipY = false;
+
+    const allCtrlBtns = document.querySelectorAll('.ctrl-btn, #save-btn');
+
+    function setControls(enabled) {
+        allCtrlBtns.forEach(b => b.disabled = !enabled);
+    }
+
+    function showError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.style.display = 'block';
+        setTimeout(() => { errorMsg.style.display = 'none'; }, 5000);
+    }
+
+    function loadFile(file) {
+        if (!file || !file.type.startsWith('image/')) {
+            showError('Please select a valid image file.');
+            return;
+        }
+        if (file.size > 30 * 1024 * 1024) {
+            showError('Image must be smaller than 30 MB.');
+            return;
+        }
+        currentFile = file;
+        currentRotation = 0;
+        flipX = false;
+        flipY = false;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            cropImg.src = e.target.result;
+            dropZone.style.display = 'none';
+            cropperWrap.style.display = 'block';
+            changeLink.style.display = 'block';
+
+            if (cropper) { cropper.destroy(); }
+            cropper = new Cropper(cropImg, {
+                viewMode: 1,
+                autoCropArea: 0.9,
+                responsive: true,
+                checkOrientation: true,
+                movable: true,
+                zoomable: true,
+                rotatable: true,
+                scalable: true,
+            });
+            setControls(true);
+            updateAngle();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function updateAngle() {
+        if (!cropper) return;
+        const data = cropper.getData();
+        currentRotation = data.rotate || 0;
+        angleDisp.textContent = Math.round(currentRotation) + '°';
+    }
+
+    // ── Upload triggers ──
+    dropZone.addEventListener('click', () => fileInput.click());
+    changeLink.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) loadFile(fileInput.files[0]);
+        fileInput.value = '';
+    });
+
+    // Drag & drop
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
+    dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = ''; });
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.style.borderColor = '';
+        if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+    });
+
+    // ── Rotate controls ──
+    document.getElementById('rot-cw').addEventListener('click', () => { cropper.rotate(90); updateAngle(); });
+    document.getElementById('rot-ccw').addEventListener('click', () => { cropper.rotate(-90); updateAngle(); });
+    document.getElementById('rot-plus').addEventListener('click', () => { cropper.rotate(1); updateAngle(); });
+    document.getElementById('rot-minus').addEventListener('click', () => { cropper.rotate(-1); updateAngle(); });
+    document.getElementById('rot-reset').addEventListener('click', () => {
+        cropper.rotateTo(0);
+        currentRotation = 0;
+        updateAngle();
+    });
+
+    // ── Flip controls ──
+    document.getElementById('flip-h').addEventListener('click', () => {
+        flipX = !flipX;
+        cropper.scaleX(flipX ? -1 : 1);
+    });
+    document.getElementById('flip-v').addEventListener('click', () => {
+        flipY = !flipY;
+        cropper.scaleY(flipY ? -1 : 1);
+    });
+
+    // ── Aspect ratio ──
+    document.querySelectorAll('.ratio-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const ratio = parseFloat(this.dataset.ratio);
+            cropper.setAspectRatio(isNaN(ratio) ? NaN : ratio);
+        });
+    });
+
+    // ── Reset crop ──
+    document.getElementById('reset-crop').addEventListener('click', () => {
+        cropper.reset();
+        currentRotation = 0;
+        flipX = false;
+        flipY = false;
+        updateAngle();
+    });
+
+    // ── Save & Download ──
+    document.getElementById('save-btn').addEventListener('click', function () {
+        if (!cropper || !currentFile) return;
+
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Processing…';
+
+        // Get crop box data in original image coordinates
+        const cropData = cropper.getData(true); // true = rounded values
+
+        const form = new FormData();
+        form.append('image', currentFile);
+        form.append('rotation', Math.round(cropData.rotate || 0));
+        form.append('crop_x', cropData.x);
+        form.append('crop_y', cropData.y);
+        form.append('crop_w', cropData.width);
+        form.append('crop_h', cropData.height);
+        form.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch('{% url "toolset:image_editor_process" %}', {
+            method: 'POST',
+            body: form,
+            credentials: 'same-origin',
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(j => { throw new Error(j.error || 'Server error'); });
+            }
+            const disposition = response.headers.get('Content-Disposition') || '';
+            const match = disposition.match(/filename="([^"]+)"/);
+            const filename = match ? match[1] : 'edited_image.jpg';
+            return response.blob().then(blob => ({ blob, filename }));
+        })
+        .then(({ blob, filename }) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        })
+        .catch(err => {
+            showError(err.message || 'Something went wrong. Please try again.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = 'Save & Download';
+        });
+    });
+})();
+</script>
+{% endblock %}

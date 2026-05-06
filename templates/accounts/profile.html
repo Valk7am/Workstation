@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<style>
+    .profile-tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid var(--line);
+        margin-bottom: 1.4rem;
+    }
+
+    .profile-tab {
+        padding: 0.6rem 1.2rem;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--muted);
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        font: inherit;
+        text-decoration: none;
+    }
+
+    .profile-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+    }
+
+    .profile-section { display: none; }
+    .profile-section.active { display: block; }
+
+    .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 1.4rem;
+        margin-bottom: 1.4rem;
+        flex-wrap: wrap;
+    }
+
+    .avatar-wrap {
+        position: relative;
+        width: 90px;
+        height: 90px;
+        flex-shrink: 0;
+    }
+
+    .avatar-wrap img,
+    .avatar-placeholder {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid var(--line);
+        background: #ede7de;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        color: var(--muted);
+    }
+
+    .avatar-edit-btn {
+        position: absolute;
+        bottom: 4px;
+        right: 4px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 26px;
+        height: 26px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+    }
+
+    .info-card {
+        position: relative;
+    }
+
+    .pen-btn {
+        position: absolute;
+        top: 0.9rem;
+        right: 0.9rem;
+        background: none;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.3rem 0.5rem;
+        cursor: pointer;
+        font-size: 0.95rem;
+        color: var(--muted);
+        transition: color 0.15s, border-color 0.15s;
+    }
+
+    .pen-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+    }
+
+    .field-readonly p {
+        margin: 0.25rem 0 0.85rem;
+        color: var(--ink);
+    }
+
+    .field-readonly label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--muted);
+    }
+
+    .activity-row {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.9rem 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .activity-meta {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 0.4rem;
+    }
+
+    .activity-badge {
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 0.15rem 0.6rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--muted);
+    }
+
+    .status-badge {
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        border: 1px solid var(--line);
+        text-transform: capitalize;
+    }
+
+    .status-in_progress {
+        background: color-mix(in srgb, #f59e0b 14%, var(--surface));
+        color: #9a6a00;
+        border-color: color-mix(in srgb, #f59e0b 35%, var(--line));
+    }
+
+    .status-completed {
+        background: color-mix(in srgb, #16a34a 14%, var(--surface));
+        color: #15703a;
+        border-color: color-mix(in srgb, #16a34a 35%, var(--line));
+    }
+
+    .status-failed {
+        background: color-mix(in srgb, #dc2626 14%, var(--surface));
+        color: #9f1d1d;
+        border-color: color-mix(in srgb, #dc2626 35%, var(--line));
+    }
+
+    .status-expired {
+        background: color-mix(in srgb, #6b7280 14%, var(--surface));
+        color: #4b5563;
+        border-color: color-mix(in srgb, #6b7280 35%, var(--line));
+    }
+
+    .activity-files {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .pagination-bar {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .page-btn {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 8px;
+        padding: 0.35rem 0.7rem;
+        cursor: pointer;
+        font: inherit;
+        color: var(--ink);
+        text-decoration: none;
+    }
+
+    .page-btn.current {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+    }
+</style>
+
+{% with user=request.user %}
+<div class="card info-card">
+    <div class="profile-header">
+        <div class="avatar-wrap">
+            {% if user.profile.avatar %}
+            <img src="{{ user.profile.avatar.url }}" alt="Avatar">
+            {% else %}
+            <div class="avatar-placeholder">{{ user.username|first|upper }}</div>
+            {% endif %}
+            <button type="button" class="avatar-edit-btn" id="avatar-trigger" title="Change photo">✎</button>
+        </div>
+        <div>
+            <h2 style="margin: 0 0 0.2rem;">{{ user.get_full_name|default:user.username }}</h2>
+            <p class="muted" style="margin: 0;">{{ user.email }}</p>
+        </div>
+    </div>
+
+    <div class="profile-tabs">
+        <a href="?tab=profile" class="profile-tab {% if active_tab == 'profile' %}active{% endif %}">Profile</a>
+        <a href="?tab=activity" class="profile-tab {% if active_tab == 'activity' %}active{% endif %}">Activity</a>
+    </div>
+
+    {# ── PROFILE TAB ── #}
+    <div class="profile-section {% if active_tab == 'profile' %}active{% endif %}" id="section-profile">
+        <button type="button" class="pen-btn" id="edit-toggle" title="Edit profile">✎ Edit</button>
+
+        {# READ-ONLY VIEW #}
+        <div id="view-mode">
+            <div class="field-readonly"><label>First name</label><p>{{ user.first_name|default:'—' }}</p></div>
+            <div class="field-readonly"><label>Last name</label><p>{{ user.last_name|default:'—' }}</p></div>
+            <div class="field-readonly"><label>Email</label><p>{{ user.email|default:'—' }}</p></div>
+            <div class="field-readonly"><label>Bio</label><p>{{ user.profile.bio|default:'—' }}</p></div>
+        </div>
+
+        {# EDIT MODE #}
+        <div id="edit-mode" style="display: none;">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {% if user_form.errors or profile_form.errors %}
+                <div class="form-errors">
+                    {% for field in user_form %}{% for error in field.errors %}<p style="margin:0.2rem 0;">{{ field.label }}: {{ error }}</p>{% endfor %}{% endfor %}
+                    {% for field in profile_form %}{% for error in field.errors %}<p style="margin:0.2rem 0;">{{ field.label }}: {{ error }}</p>{% endfor %}{% endfor %}
+                    {% for error in user_form.non_field_errors %}<p style="margin:0.2rem 0;">{{ error }}</p>{% endfor %}
+                </div>
+                {% endif %}
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight:600;font-size:0.9rem;color:var(--muted);">Profile Photo</label>
+                    {{ profile_form.avatar }}
+                </div>
+                {{ user_form.as_p }}
+                <p><label>Bio</label>{{ profile_form.bio }}</p>
+                <div style="display: flex; gap: 0.7rem; margin-top: 0.5rem;">
+                    <button type="submit" class="btn">Save</button>
+                    <button type="button" class="btn" id="cancel-edit" style="background: var(--muted);">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── ACTIVITY TAB ── #}
+    <div class="profile-section {% if active_tab == 'activity' %}active{% endif %}" id="section-activity">
+        <form method="get" action="?tab=activity" style="display: flex; gap: 0.7rem; margin-bottom: 1rem; flex-wrap: wrap;">
+            <input type="hidden" name="tab" value="activity">
+            <input name="aq" type="text" value="{{ activity_search }}" placeholder="Search by tool or input..." style="flex: 1; min-width: 220px;">
+            <button type="submit" class="btn">Search</button>
+            {% if activity_search %}<a href="?tab=activity" class="btn" style="background: var(--muted);">Clear</a>{% endif %}
+        </form>
+
+        {% if page_obj.object_list %}
+            {% for entry in page_obj %}
+            <div class="activity-row">
+                <div class="activity-meta">
+                    <span class="activity-badge">{{ entry.task_label }}</span>
+                    <span class="status-badge status-{{ entry.status }}">{{ entry.status|cut:'_' }}</span>
+                    <span class="muted" style="font-size: 0.87rem;">{{ entry.created_at|date:"M j, Y H:i" }}</span>
+                    {% if entry.expires_at %}
+                    <span class="muted" style="font-size: 0.84rem;">Expires: {{ entry.expires_at|date:"M j, Y H:i" }}</span>
+                    {% endif %}
+                </div>
+                {% if entry.input_text %}
+                <p style="margin: 0 0 0.3rem; word-break: break-all;">{{ entry.input_text|truncatechars:120 }}</p>
+                {% endif %}
+                {% if entry.result_summary %}
+                <p class="muted" style="margin: 0; font-size: 0.9rem;">{{ entry.result_summary|truncatechars:100 }}</p>
+                {% endif %}
+                {% if entry.result_files %}
+                <div class="activity-files">
+                    {% for file in entry.result_files %}
+                    {% if entry.status == 'completed' and file.relative_path %}
+                    <a href="{% url 'toolset:download_file' file.relative_path %}" class="btn" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
+                        ↓ {{ file.name }}
+                    </a>
+                    {% else %}
+                    <span class="page-btn" style="font-size: 0.82rem; cursor: default; opacity: 0.8;">{{ file.name }}{% if entry.status == 'expired' %} (expired){% endif %}</span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="pagination-bar">
+                {% if page_obj.has_previous %}
+                <a href="?tab=activity&aq={{ activity_search }}&page={{ page_obj.previous_page_number }}" class="page-btn">← Prev</a>
+                {% endif %}
+                <span class="page-btn current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                <a href="?tab=activity&aq={{ activity_search }}&page={{ page_obj.next_page_number }}" class="page-btn">Next →</a>
+                {% endif %}
+                <span class="muted" style="font-size: 0.87rem; margin-left: auto;">{{ page_obj.paginator.count }} entries total</span>
+            </div>
+        {% else %}
+            <p class="muted">No activity found{% if activity_search %} for "{{ activity_search }}"{% endif %}.</p>
+        {% endif %}
+    </div>
+</div>
+{% endwith %}
+
+<script>
+(function () {
+    const editToggle = document.getElementById('edit-toggle');
+    const cancelBtn = document.getElementById('cancel-edit');
+    const viewMode = document.getElementById('view-mode');
+    const editMode = document.getElementById('edit-mode');
+    const avatarTrigger = document.getElementById('avatar-trigger');
+
+    function enterEdit() {
+        viewMode.style.display = 'none';
+        editMode.style.display = 'block';
+        editToggle.style.display = 'none';
+    }
+
+    function exitEdit() {
+        viewMode.style.display = 'block';
+        editMode.style.display = 'none';
+        editToggle.style.display = '';
+    }
+
+    if (editToggle) editToggle.addEventListener('click', enterEdit);
+    if (cancelBtn) cancelBtn.addEventListener('click', exitEdit);
+    if (avatarTrigger) avatarTrigger.addEventListener('click', enterEdit);
+
+    // Auto-open edit mode when form came back with errors
+    const hasErrors = document.querySelector('#edit-mode .form-errors, #edit-mode .error');
+    if (hasErrors) enterEdit();
+})();
+</script>
+{% endblock %}
